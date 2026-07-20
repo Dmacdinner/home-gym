@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0c0c0c" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Home Gym</title>
+<style>html,body{margin:0;padding:0;background:#0c0c0c;}#root{min-height:100vh;}</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+// ─── Global Styles ───────────────────────────────────────────────────────────
+const G = `
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+*, *::before, *::after { box-sizing: border-box; }
+html, body { background: #0c0c0c; }
+button { -webkit-tap-highlight-color: transparent; cursor: pointer; border: none; }
+input[type=number], input[type=text] { -moz-appearance: textfield; outline: none; }
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.slide-up { animation: slideUp 0.25s ease; }
+.fade-in { animation: fadeIn 0.4s ease; }
+`;
+
+// ─── Program Data ─────────────────────────────────────────────────────────────
+// Each exercise carries GIF-lookup metadata:
+//   mg = ordered muscle-group JSON files to search (null = no animated demo, use cue + YouTube)
+//   eq = preferred equipment tiebreaker
+//   gk = match keywords (primary first); primary must appear in the exercise name for a confident match
+const PH = {
+  p1: {
+    id: "p1", name: "PHASE 01", sub: "Foundation", weeks: "Weeks 1–6", accent: "#4ade80",
+    focus: "Build the movement patterns. Protect the back. Establish a base you can actually load.",
+    days: {
+      A: {
+        name: "DAY A", sub: "Squat · Press · Core",
+        wu: ["Cat-Cow × 10", "Glute Bridge × 10 (2s hold)", "Bird Dog × 8 each side"],
+        ss: [
+          { id: "SS1", rest: 45, ex: [
+            { n: "Goblet Squat", load: "KB 12kg", s: 3, r: "12", rpe: 7, ytq: "goblet squat kettlebell form tutorial depth",
+              mg: ["quads","glutes"], eq: "dumbbell", gk: ["goblet squat","goblet"],
+              cue: "Heels down, chest tall. Squat to depth without rounding the lower back. The upright torso position reduces spinal load." },
+            { n: "Modified Curl-up", load: "Bodyweight", s: 3, r: "10", rpe: 6, ytq: "McGill modified curl up spine neutral how to",
+              mg: null, eq: null, gk: [],
+              cue: "Hands under lower back for support. Tiny lift off the floor — not a crunch. Spine stays neutral throughout. Part of the McGill Big 3. Non-negotiable." },
+          ]},
+          { id: "SS2", rest: 45, ex: [
+            { n: "DB Romanian Deadlift", load: "DB 8kg each", s: 3, r: "10", rpe: 7, ytq: "dumbbell romanian deadlift form hip hinge tutorial",
+              mg: ["hamstrings","glutes"], eq: "dumbbell", gk: ["romanian deadlift"],
+              cue: "Hinge at hips, soft knees. Feel the hamstrings load. Stop before the lower back rounds. This is a hip hinge — NOT a deadlift from the floor." },
+            { n: "DB Bench Press", load: "DB 12kg each", s: 3, r: "12", rpe: 7, ytq: "dumbbell bench press proper form tutorial control",
+              mg: ["pectorals"], eq: "dumbbell", gk: ["bench press"],
+              cue: "Feet flat on the floor. Control the descent fully. Press strong. No arching the lower back off the bench." },
+          ]},
+          { id: "SS3", rest: 45, ex: [
+            { n: "Single Arm DB Row", load: "DB 12kg", s: 3, r: "10 each", rpe: 7, ytq: "single arm dumbbell row proper form hip not shoulder",
+              mg: ["upper-back","lats"], eq: "dumbbell", gk: ["one arm row","bent over row","dumbbell row"],
+              cue: "Back flat and neutral. Row to your hip — not your shoulder. No rotation of the torso." },
+            { n: "Side Plank", load: "Bodyweight", s: 3, r: "20s each", rpe: 6, ytq: "side plank correct form spine straight McGill",
+              mg: ["abs"], eq: "bodyweight", gk: ["side plank"],
+              cue: "Hips stacked, body in a straight line. Drop to your knee if needed. Directly strengthens the lateral stabilisers protecting your disc." },
+          ]},
+        ],
+      },
+      B: {
+        name: "DAY B", sub: "Hinge · Push · Pull",
+        wu: ["Hip Circles × 10 each direction", "Glute Bridge × 10", "Band Pull-Apart × 15"],
+        ss: [
+          { id: "SS1", rest: 45, ex: [
+            { n: "KB Swing", load: "KB 16kg", s: 3, r: "12", rpe: 7, ytq: "kettlebell swing proper hip hinge form tutorial",
+              mg: ["glutes","hamstrings"], eq: "kettlebell", gk: ["kettlebell swing","swing"],
+              cue: "Hard hip hinge, then drive hips forward explosively. Arms are ropes — power comes from the hips. Never round the back." },
+            { n: "Push-up", load: "Bodyweight", s: 3, r: "10", rpe: 7, ytq: "push up proper form straight plank elbows 45 degrees",
+              mg: ["pectorals"], eq: "bodyweight", gk: ["push up","pushup","push-up"],
+              cue: "Body is a straight plank. Elbows at 45°, not flared. Drop to knees if needed and build to full reps over weeks." },
+          ]},
+          { id: "SS2", rest: 45, ex: [
+            { n: "Goblet Reverse Lunge", load: "KB 8kg", s: 3, r: "8 each", rpe: 7, ytq: "reverse lunge proper form front shin vertical back knee",
+              mg: ["quads","glutes"], eq: "dumbbell", gk: ["reverse lunge"],
+              cue: "Step back — not forward. Back knee drops close to the floor. Front shin stays vertical. Hold KB at chest." },
+            { n: "DB Seated Shoulder Press", load: "DB 8kg each", s: 3, r: "10", rpe: 7, ytq: "dumbbell seated overhead press form tutorial brace core",
+              mg: ["delts"], eq: "dumbbell", gk: ["shoulder press","overhead press"],
+              cue: "Seated. Press overhead without arching the lower back. Brace your core throughout. Control the descent." },
+          ]},
+          { id: "SS3", rest: 45, ex: [
+            { n: "Chest-Supported DB Row", load: "DB 12kg each", s: 3, r: "10", rpe: 7, ytq: "chest supported dumbbell row incline bench form tutorial",
+              mg: ["upper-back","lats"], eq: "dumbbell", gk: ["chest supported","incline row","bench row"],
+              cue: "Lie chest-down on an inclined bench. Row toward your hips. Spine fully supported — no momentum. Safest back exercise in your arsenal right now." },
+            { n: "DB Lateral Raise", load: "DB 5kg each", s: 3, r: "12", rpe: 7, ytq: "dumbbell lateral raise lead with elbows 2 second descent",
+              mg: ["delts"], eq: "dumbbell", gk: ["lateral raise"],
+              cue: "Slight bend at elbows. Lead with elbows, not hands. 2-second controlled descent." },
+          ]},
+        ],
+      },
+    },
+  },
+
+  p2: {
+    id: "p2", name: "PHASE 02", sub: "Loading", weeks: "Weeks 7–12", accent: "#fbbf24",
+    focus: "Progressive overload kicks in. More volume, heavier weights, and more complex movement patterns.",
+    days: {
+      A: {
+        name: "DAY A", sub: "Squat · Press · Core",
+        wu: ["Cat-Cow × 10", "Glute Bridge (2s hold) × 12", "Bird Dog × 10 each side"],
+        ss: [
+          { id: "SS1", rest: 60, ex: [
+            { n: "Goblet Squat", load: "KB 16kg", s: 4, r: "10", rpe: 8, ytq: "goblet squat heavy kettlebell progressive overload depth",
+              mg: ["quads","glutes"], eq: "dumbbell", gk: ["goblet squat","goblet"],
+              cue: "Heavier now. Same form — don't sacrifice depth or chest position for the weight. Form breaks under load are how backs get hurt." },
+            { n: "Bird Dog (3s hold)", load: "Bodyweight", s: 4, r: "10 each", rpe: 7, ytq: "bird dog 3 second hold core stability anti-rotation tutorial",
+              mg: null, eq: null, gk: [],
+              cue: "3-second hold at full extension each rep. Keep hips completely square throughout. This is genuine strength work now." },
+          ]},
+          { id: "SS2", rest: 60, ex: [
+            { n: "DB Romanian Deadlift", load: "DB 14kg each", s: 4, r: "10", rpe: 8, ytq: "dumbbell RDL progressive overload hamstrings form",
+              mg: ["hamstrings","glutes"], eq: "dumbbell", gk: ["romanian deadlift"],
+              cue: "Increase load gradually — 2kg increments. If back gives you feedback during the set, reduce weight. Not ego." },
+            { n: "DB Bench Press", load: "DB 17kg each", s: 4, r: "10", rpe: 8, ytq: "dumbbell bench press hypertrophy near failure 4 sets",
+              mg: ["pectorals"], eq: "dumbbell", gk: ["bench press"],
+              cue: "4th set to near failure. Leave 1–2 reps in the tank — that's your hypertrophy stimulus." },
+          ]},
+          { id: "SS3", rest: 60, ex: [
+            { n: "Single Arm DB Row", load: "DB 17kg", s: 4, r: "10 each", rpe: 8, ytq: "strict single arm dumbbell row no swing heavy tutorial",
+              mg: ["upper-back","lats"], eq: "dumbbell", gk: ["one arm row","bent over row","dumbbell row"],
+              cue: "No body swing for momentum. Strict rows. Squeeze hard at the top." },
+            { n: "Side Plank + Hip Dip", load: "Bodyweight", s: 4, r: "12 each", rpe: 7, ytq: "side plank hip dip exercise lateral core tutorial",
+              mg: ["abs"], eq: "bodyweight", gk: ["side plank"],
+              cue: "From side plank, dip hips toward the floor and drive them up. Controlled tempo. Serious lateral core exercise now." },
+          ]},
+        ],
+      },
+      B: {
+        name: "DAY B", sub: "Hinge · Push · Pull",
+        wu: ["Hip Circles × 10 each direction", "Single Leg Glute Bridge × 8 each side", "Band Pull-Apart × 20"],
+        ss: [
+          { id: "SS1", rest: 60, ex: [
+            { n: "KB Swing", load: "KB 20kg", s: 4, r: "15", rpe: 8, ytq: "heavy kettlebell swing 20kg volume form rounding",
+              mg: ["glutes","hamstrings"], eq: "kettlebell", gk: ["kettlebell swing","swing"],
+              cue: "More volume, heavier bell. Form must stay locked — if you're rounding at rep 12, you've gone too heavy." },
+            { n: "DB Floor Press", load: "DB 17kg each", s: 4, r: "10", rpe: 8, ytq: "dumbbell floor press shoulder safe form tutorial upper arms",
+              mg: ["pectorals"], eq: "dumbbell", gk: ["floor press"],
+              cue: "Upper arms rest on the floor at the bottom of each rep. Great for shoulder safety — takes extreme end range out of the movement." },
+          ]},
+          { id: "SS2", rest: 60, ex: [
+            { n: "Bulgarian Split Squat", load: "DB 8kg each", s: 4, r: "8 each", rpe: 8, ytq: "bulgarian split squat rear foot elevated front shin vertical form",
+              mg: ["quads","glutes"], eq: "dumbbell", gk: ["bulgarian split squat","split squat"],
+              cue: "Rear foot elevated on the bench. Front shin stays vertical. Torso upright — forward lean increases spinal load." },
+            { n: "DB Shoulder Press (standing)", load: "DB 10kg each", s: 4, r: "10", rpe: 8, ytq: "standing dumbbell shoulder press brace core hyperextend form",
+              mg: ["delts"], eq: "dumbbell", gk: ["shoulder press","overhead press"],
+              cue: "Standing — higher core demand. Brace your abs hard throughout. Don't hyperextend lower back at the top of the press." },
+          ]},
+          { id: "SS3", rest: 60, ex: [
+            { n: "Chest-Supported DB Row", load: "DB 15kg each", s: 4, r: "10", rpe: 8, ytq: "chest supported row 1 second pause top contraction",
+              mg: ["upper-back","lats"], eq: "dumbbell", gk: ["chest supported","incline row","bench row"],
+              cue: "Pause 1 full second at the top. Feel the full contraction before you lower." },
+            { n: "KB Halo", load: "KB 8kg", s: 4, r: "8 each dir", rpe: 6, ytq: "kettlebell halo shoulder mobility thoracic spine tutorial slow",
+              mg: null, eq: null, gk: [],
+              cue: "Controlled circles around your head. Builds shoulder stability and thoracic mobility. Go slow." },
+          ]},
+        ],
+      },
+    },
+  },
+
+  p3: {
+    id: "p3", name: "PHASE 03", sub: "Hypertrophy", weeks: "Weeks 13+", accent: "#f87171",
+    focus: "Serious muscle-building territory. Consider adding a 3rd day. Heavier, more complex, higher volume.",
+    days: {
+      A: {
+        name: "DAY A", sub: "Lower + Posterior Chain",
+        wu: ["Cat-Cow × 10", "Single Leg Glute Bridge × 10 each", "Bird Dog × 10 each (3s hold)"],
+        ss: [
+          { id: "SS1", rest: 75, ex: [
+            { n: "Banded Goblet Squat", load: "KB 20kg + band", s: 4, r: "10", rpe: 8, ytq: "banded goblet squat knees out glute activation tutorial",
+              mg: ["quads","glutes"], eq: "dumbbell", gk: ["goblet squat","goblet"],
+              cue: "Band around thighs. Push your knees out against the band throughout. Combines load and glute activation." },
+            { n: "Bird Dog Row", load: "DB 6kg", s: 4, r: "8 each", rpe: 7, ytq: "bird dog row dumbbell anti-rotation core exercise tutorial",
+              mg: null, eq: null, gk: [],
+              cue: "In bird dog position, hold one DB and row it to your hip while opposite leg is extended. Spine stays completely locked." },
+          ]},
+          { id: "SS2", rest: 75, ex: [
+            { n: "KB Single Leg RDL", load: "KB 16kg", s: 4, r: "8 each", rpe: 8, ytq: "single leg RDL kettlebell contralateral form balance tutorial",
+              mg: ["hamstrings","glutes"], eq: "kettlebell", gk: ["single leg deadlift","single leg romanian","one leg deadlift"],
+              cue: "Hinge on one leg, KB in the opposite hand. Slow and controlled. Builds the full posterior chain and balance simultaneously." },
+            { n: "DB Hip Thrust (on bench)", load: "DB 20kg", s: 4, r: "12", rpe: 8, ytq: "dumbbell hip thrust bench upper back glutes tutorial form",
+              mg: ["glutes"], eq: "dumbbell", gk: ["hip thrust"],
+              cue: "Upper back on the bench, DB balanced on hips. Drive hips to full extension. Squeeze glutes hard for 1 second at the top." },
+          ]},
+          { id: "SS3", rest: 75, ex: [
+            { n: "DB Bench Press (strength)", load: "DB 20kg each", s: 4, r: "8", rpe: 8, ytq: "dumbbell bench press strength 8 reps heavy control tension",
+              mg: ["pectorals"], eq: "dumbbell", gk: ["bench press"],
+              cue: "Strength rep range now. Heavier load, fewer reps, more tension on the muscle. Control it — don't let the weight control you." },
+            { n: "Side Plank + Thread Needle", load: "Bodyweight", s: 4, r: "10 each", rpe: 7, ytq: "side plank thread the needle thoracic rotation anti-rotation",
+              mg: ["abs"], eq: "bodyweight", gk: ["side plank"],
+              cue: "In side plank, reach your top arm under your body and back out. Anti-rotation and thoracic rotation work." },
+          ]},
+        ],
+      },
+      B: {
+        name: "DAY B", sub: "Upper + Hinge",
+        wu: ["Band Pull-Apart × 20", "Face Pull with band × 15", "KB Swing warm-up × 10 (light)"],
+        ss: [
+          { id: "SS1", rest: 75, ex: [
+            { n: "KB Double Swing", load: "KB 12kg each hand", s: 4, r: "12", rpe: 8, ytq: "double kettlebell swing two bells form hip hinge core braced",
+              mg: ["glutes","hamstrings"], eq: "kettlebell", gk: ["kettlebell swing","swing"],
+              cue: "Two KBs simultaneously. Demands serious core bracing and hip power. Proud chest throughout — no forward collapse." },
+            { n: "DB Incline Press", load: "DB 17kg each", s: 4, r: "10", rpe: 8, ytq: "incline dumbbell press upper chest front delt form tutorial",
+              mg: ["pectorals"], eq: "dumbbell", gk: ["incline press","incline bench"],
+              cue: "Bench at incline. Targets upper chest and front delt. Control the descent — don't let it drop." },
+          ]},
+          { id: "SS2", rest: 75, ex: [
+            { n: "Bulgarian Split Squat", load: "DB 15kg each", s: 4, r: "8 each", rpe: 8, ytq: "heavy bulgarian split squat depth strong legs form",
+              mg: ["quads","glutes"], eq: "dumbbell", gk: ["bulgarian split squat","split squat"],
+              cue: "Heavy now. If you can complete this with control at this load, your legs are genuinely strong. No shortcuts on depth." },
+            { n: "DB Arnold Press", load: "DB 10kg each", s: 4, r: "10", rpe: 8, ytq: "dumbbell Arnold press rotate palms three delt heads form",
+              mg: ["delts"], eq: "dumbbell", gk: ["arnold press"],
+              cue: "Start with palms facing you, rotate to palms out as you press overhead. Hits all three delt heads. Full deliberate rotation each rep." },
+          ]},
+          { id: "SS3", rest: 75, ex: [
+            { n: "Chest-Supported Row (heavy)", load: "DB 18kg each", s: 4, r: "8", rpe: 8, ytq: "heavy chest supported row 2 second pause back thickness",
+              mg: ["upper-back","lats"], eq: "dumbbell", gk: ["chest supported","incline row","bench row"],
+              cue: "Heavy row, 2-second pause at the top. This is where back thickness is actually built." },
+            { n: "Hammer Curl + Tricep Kickback", load: "DB 10kg", s: 4, r: "10 each", rpe: 7, ytq: "hammer curl tricep kickback superset continuous no rest arms",
+              mg: ["biceps"], eq: "dumbbell", gk: ["hammer curl"],
+              cue: "No rest between the curl and the kickback — it's a continuous arm superset. Curl first, then immediately kick back without putting the DB down." },
+          ]},
+        ],
+      },
+    },
+  },
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const firstNum = s => { const m = (s || "").match(/\d+(\.\d+)?/); return m ? parseFloat(m[0]) : 0; };
+const isComp = n => /squat|dead|bench|press|row|swing|thrust|lunge|rdl/i.test(n);
+const fmtT = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+const ytURL = q => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+const HKEY = "ghv6";
+const PHASE_ACCENT = { p1: "#4ade80", p2: "#fbbf24", p3: "#f87171" };
+
+// Estimated 1RM (Epley) — best single progress signal since it blends load and reps
+const e1RM = e => e.w * (1 + e.r / 30);
+const bestE1 = sets => sets.length ? Math.round(Math.max(...sets.map(e1RM)) * 10) / 10 : 0;
+
+// Bring older single-session history entries up to the sessions[] schema on load
+const migrate = h => {
+  const out = { ...h };
+  Object.keys(out).forEach(k => {
+    const e = out[k];
+    if (e && !e.sessions) {
+      out[k] = {
+        ...e,
+        sessions: e.ls?.length
+          ? [{ date: e.ld || "", ts: 0, sets: e.ls, vol: e.ls.reduce((s, x) => s + x.w * x.r, 0), top: Math.max(...e.ls.map(x => x.w)), e1rm: bestE1(e.ls) }]
+          : [],
+      };
+    }
+  });
+  return out;
+};
+
+// Best-guess GIF/YouTube metadata for a swapped-in exercise name
+const inferDemo = name => {
+  const n = name.toLowerCase();
+  const ytq = `${name} proper form tutorial`;
+  if (/goblet|squat/.test(n)) return { mg: ["quads", "glutes"], eq: "dumbbell", gk: ["squat"], ytq };
+  if (/rdl|romanian|deadlift/.test(n)) return { mg: ["hamstrings", "glutes"], eq: "dumbbell", gk: ["deadlift"], ytq };
+  if (/swing/.test(n)) return { mg: ["glutes", "hamstrings"], eq: "kettlebell", gk: ["swing"], ytq };
+  if (/floor press/.test(n)) return { mg: ["pectorals"], eq: "dumbbell", gk: ["floor press"], ytq };
+  if (/incline/.test(n)) return { mg: ["pectorals"], eq: "dumbbell", gk: ["incline"], ytq };
+  if (/bench/.test(n)) return { mg: ["pectorals"], eq: "dumbbell", gk: ["bench press"], ytq };
+  if (/push.?up/.test(n)) return { mg: ["pectorals"], eq: "bodyweight", gk: ["push up"], ytq };
+  if (/arnold/.test(n)) return { mg: ["delts"], eq: "dumbbell", gk: ["arnold press"], ytq };
+  if (/lateral/.test(n)) return { mg: ["delts"], eq: "dumbbell", gk: ["lateral raise"], ytq };
+  if (/shoulder|overhead|press/.test(n)) return { mg: ["delts"], eq: "dumbbell", gk: ["shoulder press"], ytq };
+  if (/row/.test(n)) return { mg: ["upper-back", "lats"], eq: "dumbbell", gk: ["row"], ytq };
+  if (/lunge|split squat|bulgarian/.test(n)) return { mg: ["quads", "glutes"], eq: "dumbbell", gk: ["lunge", "split squat"], ytq };
+  if (/hip thrust/.test(n)) return { mg: ["glutes"], eq: "dumbbell", gk: ["hip thrust"], ytq };
+  if (/hammer/.test(n)) return { mg: ["biceps"], eq: "dumbbell", gk: ["hammer curl"], ytq };
+  if (/curl/.test(n)) return { mg: ["biceps"], eq: "dumbbell", gk: ["curl"], ytq };
+  if (/kickback|tricep/.test(n)) return { mg: ["triceps"], eq: "dumbbell", gk: ["kickback"], ytq };
+  return { mg: null, eq: null, gk: [], ytq };
+};
+
+// Sensible quick alternatives for the swap picker, inferred from the movement
+const altsFor = name => {
+  const n = name.toLowerCase();
+  if (/goblet|squat/.test(n)) return ["DB Squat", "Leg Press", "Box Squat"];
+  if (/rdl|romanian|deadlift/.test(n)) return ["DB Deadlift", "Good Morning", "Hip Thrust"];
+  if (/swing/.test(n)) return ["DB Deadlift", "Hip Thrust", "Good Morning"];
+  if (/bench|floor press|push.?up|incline/.test(n)) return ["DB Floor Press", "Push-up", "Incline DB Press"];
+  if (/shoulder|arnold|overhead|lateral/.test(n)) return ["DB Shoulder Press", "Lateral Raise", "Arnold Press"];
+  if (/row/.test(n)) return ["Chest-Supported Row", "Single Arm Row", "Inverted Row"];
+  if (/lunge|split squat|bulgarian/.test(n)) return ["Reverse Lunge", "Split Squat", "Step-up"];
+  if (/curl|kickback|tricep/.test(n)) return ["Hammer Curl", "Bicep Curl", "Tricep Kickback"];
+  if (/plank|bird dog|curl-up|halo/.test(n)) return ["Side Plank", "Dead Bug", "Pallof Press"];
+  return ["Substitute exercise"];
+};
+
+// ─── Animated GIF lookup (ExerciseGymGifsDB via jsDelivr, no key, CORS-ok) ─────
+const GIFBASE = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0";
+const _grpCache = {};
+const _matchCache = {};
+
+const fetchGroup = async mg => {
+  if (_grpCache[mg] !== undefined) return _grpCache[mg];
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const r = await fetch(`${GIFBASE}/api/en/muscles/${mg}.json`, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) return (_grpCache[mg] = []);
+    const d = await r.json();
+    return (_grpCache[mg] = d.exercises || []);
+  } catch { clearTimeout(t); return (_grpCache[mg] = []); }
+};
+
+// Returns { entry, reason } so the modal can report exactly what happened.
+// reason: "ok" | "by-design" (rehab, no mg) | "fetch-failed" (library unreachable) | "no-match"
+const findGif = async ex => {
+  if (!ex.mg || !ex.gk?.length) return { entry: null, reason: "by-design" };
+  const cacheKey = ex.n;
+  if (_matchCache[cacheKey] !== undefined) return _matchCache[cacheKey];
+  const primary = ex.gk[0];
+  let seen = 0;
+  for (const g of ex.mg) {
+    const list = await fetchGroup(g);
+    seen += list.length;
+    if (!list.length) continue;
+    const named = list.filter(c => ex.gk.some(k => c.name.toLowerCase().includes(k)));
+    const prim = named.filter(c => c.name.toLowerCase().includes(primary));
+    const use = prim.length ? prim : named;
+    if (use.length) {
+      use.sort((a, b) => {
+        const ae = ex.eq && a.equipment === ex.eq ? 0 : 1;
+        const be = ex.eq && b.equipment === ex.eq ? 0 : 1;
+        if (ae !== be) return ae - be;
+        return a.name.length - b.name.length;
+      });
+      return (_matchCache[cacheKey] = { entry: use[0], reason: "ok" });
+    }
+  }
+  return (_matchCache[cacheKey] = { entry: null, reason: seen === 0 ? "fetch-failed" : "no-match" });
+};
+
+const calcNext = (logged, pReps, pRPE, name) => {
+  if (!logged.length) return null;
+  const last = logged[logged.length - 1];
+  const misses = logged.filter(s => s.r < pReps - 1 || s.rpe > pRPE + 1).length;
+  const bump = isComp(name) ? 2.5 : 1.25;
+  if (last.rpe <= pRPE - 2 || last.r >= pReps + 2)
+    return { w: last.w + bump, note: `Light. Bumping +${bump}kg.` };
+  if (last.r < pReps - 1 || last.rpe > pRPE + 1) {
+    if (misses >= 2) return { w: Math.round(last.w * 0.9 * 2) / 2, note: "Two misses. Dropped 10%." };
+    return { w: last.w, note: "Tough set. Hold weight." };
+  }
+  return { w: last.w, note: "On target. Same weight." };
+};
+
+// ─── Sparkline (dependency-free SVG line chart of est 1RM over sessions) ───────
+function Spark({ data, accent, w = 150, h = 44 }) {
+  if (!data || data.length < 2) {
+    return <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#333" }}>Log 2+ sessions for a trend</div>;
+  }
+  const min = Math.min(...data), max = Math.max(...data);
+  const rng = max - min || 1;
+  const pad = 4;
+  const pts = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+    const y = pad + (1 - (v - min) / rng) * (h - pad * 2);
+    return [x, y];
+  });
+  const line = pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+  const last = pts[pts.length - 1];
+  return (
+    <svg width={w} height={h} style={{ display: "block" }}>
+      <polyline points={line} fill="none" stroke={accent} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {pts.map((p, i) => (
+        <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 3 : 1.5} fill={i === pts.length - 1 ? accent : "#333"} />
+      ))}
+      <circle cx={last[0]} cy={last[1]} r="6" fill="none" stroke={accent} strokeWidth="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+// ─── Exercise Demo Modal (animated GIF first, cue + YouTube as fallback) ───────
+function DemoModal({ ex, accent, onClose }) {
+  const [res, setRes] = useState(undefined);      // { entry, reason } | undefined while loading
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgFail, setImgFail] = useState(false);
+  const BB = { fontFamily: "'Bebas Neue', sans-serif" };
+  const MN = { fontFamily: "'JetBrains Mono', monospace" };
+
+  useEffect(() => {
+    let alive = true;
+    setRes(undefined); setImgLoaded(false); setImgFail(false);
+    findGif(ex).then(r => { if (alive) setRes(r); });
+    return () => { alive = false; };
+  }, [ex.n]);
+
+  const entry = res?.entry;
+  const showGif = entry && entry.gifUrl && !imgFail;
+
+  // Human-readable diagnostic for whatever happened
+  const diag = () => {
+    if (!res) return "";
+    if (imgFail) return "Match found, but the image would not display in-app. Try Open demo.";
+    if (res.reason === "ok") return imgLoaded ? `Animated demo · ${entry.name}` : "Loading animated demo…";
+    if (res.reason === "by-design") return "Rehab / core drill — no animation in general GIF libraries. Cue below.";
+    if (res.reason === "fetch-failed") return "Could not reach the GIF library from the app (network blocked here).";
+    if (res.reason === "no-match") return "GIF library reached, but no close match for this movement.";
+    return "";
+  };
+
+  return (
+    <div onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.93)", zIndex: 300, display: "flex", alignItems: "flex-end" }}>
+      <div onClick={e => e.stopPropagation()} className="slide-up"
+        style={{ background: "#111", borderRadius: "22px 22px 0 0", width: "100%", maxWidth: 480, margin: "0 auto", maxHeight: "92vh", overflowY: "auto", padding: "22px 16px 56px" }}>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+          <div>
+            <div style={{ ...BB, fontSize: 24, letterSpacing: 2, color: "#fff", lineHeight: 1.1 }}>{ex.n}</div>
+            <div style={{ ...MN, fontSize: 11, color: "#555", marginTop: 5 }}>{ex.load} · {ex.s} × {ex.r} · Target RPE {ex.rpe}</div>
+          </div>
+          <button onClick={onClose}
+            style={{ background: "#222", border: "1px solid #333", borderRadius: 8, padding: "7px 16px", color: "#888", fontSize: 20, lineHeight: 1 }}>×</button>
+        </div>
+
+        {res === undefined ? (
+          <div style={{ height: 240, background: "#0a0a0a", borderRadius: 14, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 10 }}>
+            <div style={{ width: 24, height: 24, border: `2px solid ${accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            <div style={{ ...MN, fontSize: 11, color: "#333", animation: "pulse 1.5s infinite" }}>Finding animated demo…</div>
+          </div>
+        ) : showGif ? (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ position: "relative", background: "#fff", borderRadius: 14, border: "1px solid #1e1e1e", overflow: "hidden", height: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {!imgLoaded && (
+                <div style={{ position: "absolute", inset: 0, background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 22, height: 22, border: `2px solid ${accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                </div>
+              )}
+              <img src={entry.gifUrl} alt={`${ex.n} demonstration`} className="fade-in"
+                onLoad={() => setImgLoaded(true)} onError={() => setImgFail(true)}
+                style={{ width: "100%", height: "100%", objectFit: "contain", display: imgLoaded ? "block" : "none" }} />
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: "#0a0a0a", borderRadius: 14, border: "1px dashed #222", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "26px 16px", marginBottom: 10 }}>
+            <div style={{ fontSize: 30 }}>{res.reason === "by-design" ? "🧠" : "🎬"}</div>
+            <div style={{ color: "#666", fontSize: 13, fontWeight: 600 }}>
+              {res.reason === "by-design" ? "No animation for this drill" : "Animated demo unavailable"}
+            </div>
+            <div style={{ color: "#3a3a3a", fontSize: 11, textAlign: "center", lineHeight: 1.5 }}>Read the cue below, or watch a real demo on YouTube.</div>
+          </div>
+        )}
+
+        {/* Diagnostic line + direct open (proves whether the GIF file itself is reachable) */}
+        {res && res.reason !== "by-design" && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <span style={{ ...MN, fontSize: 9, color: "#3a3a3a", lineHeight: 1.4, flex: 1 }}>{diag()}</span>
+            {entry?.gifUrl && (
+              <a href={entry.gifUrl} target="_blank" rel="noopener noreferrer"
+                style={{ ...MN, fontSize: 10, color: accent, textDecoration: "none", border: `1px solid ${accent}44`, borderRadius: 6, padding: "5px 9px", whiteSpace: "nowrap" }}>
+                Open demo ↗
+              </a>
+            )}
+          </div>
+        )}
+
+        <div style={{ background: "#0a0a0a", borderLeft: `3px solid ${accent}`, borderRadius: "0 12px 12px 0", padding: "14px 14px", marginBottom: 12 }}>
+          <div style={{ ...BB, fontSize: 11, letterSpacing: 3, color: accent, marginBottom: 9 }}>FORM CUE</div>
+          <div style={{ fontSize: 14, color: "#bbb", lineHeight: 1.78 }}>{ex.cue}</div>
+        </div>
+
+        {showGif ? (
+          <a href={ytURL(ex.ytq)} target="_blank" rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "transparent", color: "#777", border: "1px solid #252525", padding: "12px 0", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
+            <span style={{ color: "#c00" }}>▶</span> Prefer a real person? Watch on YouTube
+          </a>
+        ) : (
+          <a href={ytURL(ex.ytq)} target="_blank" rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, background: "#c00", color: "#fff", padding: "16px 0", borderRadius: 12, textDecoration: "none", fontWeight: 700, fontSize: 16, fontFamily: "'DM Sans', sans-serif" }}>
+            <span style={{ fontSize: 18 }}>▶</span> Watch Demo on YouTube
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+function GymApp() {
+  const BB = { fontFamily: "'Bebas Neue', sans-serif" };
+  const MN = { fontFamily: "'JetBrains Mono', monospace" };
+
+  const [mode, setMode] = useState("program");
+  const [ph, setPh] = useState("p1");
+  const [day, setDay] = useState("A");
+  const [demoEx, setDemoEx] = useState(null);
+
+  // Session
+  const [sExs, setSExs] = useState([]);
+  const [aIdx, setAIdx] = useState(0);
+  const [sStart, setSStart] = useState(null);
+  const [sdone, setSdone] = useState(false);
+
+  // Log inputs
+  const [lw, setLw] = useState("");
+  const [lr, setLr] = useState("");
+  const [lrpe, setLrpe] = useState(8);
+
+  // Swap
+  const [swapping, setSwapping] = useState(false);
+  const [swapName, setSwapName] = useState("");
+  const [swapLoad, setSwapLoad] = useState("");
+
+  // Rest timer
+  const [tmr, setTmr] = useState({ on: false, s: 90, total: 90 });
+  const tmrRef = useRef(null);
+
+  // History
+  const [hist, setHist] = useState({});
+  const [openHk, setOpenHk] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = localStorage.getItem(HKEY);
+        if (r) setHist(migrate(JSON.parse(r)));
+      } catch {}
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (tmr.on && tmr.s > 0) {
+      tmrRef.current = setTimeout(() => setTmr(t => ({ ...t, s: t.s - 1 })), 1000);
+    } else if (tmr.on && tmr.s === 0) {
+      setTmr(t => ({ ...t, on: false }));
+    }
+    return () => clearTimeout(tmrRef.current);
+  }, [tmr.on, tmr.s]);
+
+  const pd = PH[ph];
+  const dd = pd.days[day];
+  const acc = pd.accent;
+
+  const advanceFrom = (upd, fromIdx) => {
+    const ni = upd.findIndex((e, i) => i > fromIdx && e.status === "pending");
+    if (ni !== -1) { upd[ni] = { ...upd[ni], status: "active" }; return ni; }
+    return fromIdx;
+  };
+
+  const startSession = () => {
+    const exs = dd.ss.flatMap(ss =>
+      ss.ex.map(ex => ({
+        ...ex, ssId: ss.id, rest: ss.rest,
+        logged: [], status: "pending", nextW: firstNum(ex.load), vol: 0, note: ""
+      }))
+    );
+    if (exs.length) exs[0].status = "active";
+    setSExs(exs); setAIdx(0); setSStart(Date.now()); setSdone(false);
+    setLw(""); setLr(""); setLrpe(8); setSwapping(false);
+    setMode("session");
+  };
+
+  const handleLog = () => {
+    const w = parseFloat(lw), r = parseInt(lr);
+    if (!w || !r || w <= 0 || r <= 0) return;
+
+    const upd = [...sExs];
+    const ex = { ...upd[aIdx] };
+    const pR = parseInt(ex.r) || 10;
+    const pRPE = ex.rpe || 8;
+    const hk = `${ph}_${day}_${ex.n}`;
+
+    const entry = { w, r, rpe: lrpe };
+    if (hist[hk]?.bv && w * r > hist[hk].bv) entry.pr = true;
+
+    const newLogged = [...ex.logged, entry];
+    const nxt = calcNext(newLogged, pR, pRPE, ex.n);
+
+    ex.logged = newLogged;
+    ex.nextW = nxt ? nxt.w : w;
+    ex.note = nxt ? nxt.note : "";
+    ex.vol = newLogged.reduce((s, e) => s + e.w * e.r, 0);
+
+    let newAIdx = aIdx;
+    if (newLogged.length >= ex.s) {
+      ex.status = "done";
+      upd[aIdx] = ex;
+      newAIdx = advanceFrom(upd, aIdx);
+    } else {
+      upd[aIdx] = ex;
+    }
+    setSExs(upd); setAIdx(newAIdx);
+    setTmr({ on: true, s: ex.rest, total: ex.rest });
+    setLw(""); setLr("");
+  };
+
+  const skipActive = () => {
+    const upd = [...sExs];
+    upd[aIdx] = { ...upd[aIdx], status: "skipped" };
+    const newAIdx = advanceFrom(upd, aIdx);
+    setSExs(upd); setAIdx(newAIdx); setSwapping(false);
+    setTmr(t => ({ ...t, on: false }));
+  };
+
+  const restoreSkipped = idx => {
+    const upd = [...sExs];
+    upd[idx] = { ...upd[idx], status: sExs.some(e => e.status === "active") ? "pending" : "active" };
+    setSExs(upd);
+    if (upd[idx].status === "active") setAIdx(idx);
+  };
+
+  const confirmSwap = () => {
+    const nm = swapName.trim();
+    if (!nm) return;
+    const g = inferDemo(nm);
+    const upd = [...sExs];
+    const cur = upd[aIdx];
+    upd[aIdx] = {
+      ...cur, n: nm, load: swapLoad.trim() || cur.load,
+      ytq: g.ytq, mg: g.mg, eq: g.eq, gk: g.gk, swapped: true,
+      nextW: firstNum(swapLoad) || cur.nextW,
+    };
+    setSExs(upd); setSwapping(false); setSwapName(""); setSwapLoad("");
+  };
+
+  const endSession = async () => {
+    const nh = { ...hist };
+    const today = new Date().toLocaleDateString("en-AU");
+    const ts = Date.now();
+    sExs.forEach(ex => {
+      if (!ex.logged.length) return; // skip skipped / unlogged
+      const hk = `${ph}_${day}_${ex.n}`;
+      const vol = ex.logged.reduce((s, e) => s + e.w * e.r, 0);
+      const top = Math.max(...ex.logged.map(e => e.w));
+      const prev = nh[hk] || {};
+      const sessions = (prev.sessions || [])
+        .concat([{ date: today, ts, sets: ex.logged, vol, top, e1rm: bestE1(ex.logged) }])
+        .slice(-60);
+      nh[hk] = { ls: ex.logged, ld: today, bv: Math.max(vol, prev.bv || 0), sessions };
+    });
+    setHist(nh);
+    try { localStorage.setItem(HKEY, JSON.stringify(nh)); } catch {}
+    setSdone(true);
+  };
+
+  const totalVol = sExs.reduce((s, e) => s + e.vol, 0);
+  const doneCount = sExs.filter(e => e.status === "done").length;
+  const skipCount = sExs.filter(e => e.status === "skipped").length;
+  const durMin = sStart ? Math.floor((Date.now() - sStart) / 60000) : 0;
+
+  // History rows, most-recently trained first
+  const histRows = Object.entries(hist)
+    .filter(([, v]) => v.sessions && v.sessions.length)
+    .map(([k, v]) => {
+      const parts = k.split("_");
+      const p = parts[0], d = parts[1], name = parts.slice(2).join("_");
+      const s = v.sessions;
+      const lastTs = s[s.length - 1].ts || 0;
+      return { key: k, p, d, name, s, lastTs };
+    })
+    .sort((a, b) => b.lastTs - a.lastTs);
+
+  return (
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: "#0c0c0c", minHeight: "100vh", color: "#e8e8e8", maxWidth: 480, margin: "0 auto", paddingBottom: 100 }}>
+      <style>{G}</style>
+
+      {demoEx && <DemoModal ex={demoEx} accent={acc} onClose={() => setDemoEx(null)} />}
+
+      {/* ── Sticky Nav ── */}
+      <div style={{ position: "sticky", top: 0, zIndex: 100, background: "#0c0c0c", borderBottom: "1px solid #1a1a1a", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 3, height: 22, background: acc, borderRadius: 2 }} />
+          <span style={{ ...BB, fontSize: 19, letterSpacing: 3, color: "#fff" }}>HOME GYM</span>
+        </div>
+        <div style={{ display: "flex", gap: 5 }}>
+          {[["program", "PROGRAM"], ["session", sExs.length && !sdone ? "SESSION ●" : "SESSION"], ["history", "HISTORY"]].map(([m, label]) => (
+            <button key={m}
+              onClick={() => { if (m === "session" && !(sExs.length && !sdone)) startSession(); else setMode(m); }}
+              style={{ padding: "7px 10px", background: mode === m ? acc : "transparent", border: `1px solid ${mode === m ? acc : "#333"}`, borderRadius: 6, color: mode === m ? "#000" : "#555", fontSize: 10, fontWeight: 700, ...BB, letterSpacing: 1 }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ══════════════ PROGRAM VIEW ══════════════ */}
+      {mode === "program" && (
+        <div style={{ padding: "14px 14px 0" }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            {Object.entries(PH).map(([key, p]) => (
+              <button key={key} onClick={() => { setPh(key); setDay("A"); }}
+                style={{ flex: 1, padding: "10px 6px", background: ph === key ? "#161616" : "transparent", border: `1px solid ${ph === key ? p.accent : "#1e1e1e"}`, borderRadius: 8 }}>
+                <div style={{ ...BB, fontSize: 12, letterSpacing: 2, color: ph === key ? p.accent : "#333" }}>{p.name}</div>
+                <div style={{ fontSize: 10, color: ph === key ? "#666" : "#2a2a2a", marginTop: 2 }}>{p.sub}</div>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ borderLeft: `3px solid ${acc}`, background: "#111", padding: "10px 14px", borderRadius: "0 8px 8px 0", marginBottom: 14, fontSize: 13, color: "#777", lineHeight: 1.6 }}>
+            {pd.focus}
+          </div>
+
+          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            {["A", "B"].map(d => (
+              <button key={d} onClick={() => setDay(d)}
+                style={{ flex: 1, padding: "12px 10px", background: day === d ? "#161616" : "transparent", border: `1px solid ${day === d ? "#333" : "#1a1a1a"}`, borderRadius: 8 }}>
+                <div style={{ ...BB, fontSize: 15, letterSpacing: 2, color: day === d ? "#fff" : "#333" }}>{pd.days[d].name}</div>
+                <div style={{ fontSize: 11, color: day === d ? "#555" : "#222", marginTop: 2 }}>{pd.days[d].sub}</div>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+            <div style={{ ...BB, fontSize: 11, letterSpacing: 3, color: "#f59e0b", marginBottom: 8 }}>WARMUP — 4 MIN</div>
+            {dd.wu.map((w, i) => (
+              <div key={i} style={{ fontSize: 13, color: "#777", padding: "5px 0", borderBottom: i < dd.wu.length - 1 ? "1px solid #1a1a1a" : "none", display: "flex", gap: 8 }}>
+                <span style={{ ...MN, fontSize: 10, color: "#333", minWidth: 14 }}>{i + 1}</span>{w}
+              </div>
+            ))}
+          </div>
+
+          {dd.ss.map(ss => (
+            <div key={ss.id} style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "0 2px", marginBottom: 6 }}>
+                <span style={{ ...BB, fontSize: 11, letterSpacing: 3, color: acc }}>{ss.id} — SUPERSET</span>
+                <span style={{ ...MN, fontSize: 10, color: "#444" }}>{ss.rest}s rest</span>
+              </div>
+              <div style={{ border: "1px solid #1e1e1e", borderRadius: 10, overflow: "hidden" }}>
+                {ss.ex.map((ex, ei) => (
+                  <div key={ex.n} style={{ padding: "14px", background: ei % 2 === 0 ? "#0f0f0f" : "#111", borderBottom: ei < ss.ex.length - 1 ? "1px solid #1a1a1a" : "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <div>
+                        <button onClick={() => setDemoEx(ex)} style={{ background: "none", padding: 0, textAlign: "left", display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontWeight: 600, fontSize: 15, color: "#fff", textDecoration: "underline", textDecorationColor: `${acc}55`, textUnderlineOffset: 3 }}>{ex.n}</span>
+                          <span style={{ fontSize: 11, color: `${acc}88` }}>▶</span>
+                        </button>
+                        <div style={{ ...MN, fontSize: 11, color: "#444", marginTop: 3 }}>{ex.load}</div>
+                      </div>
+                      <div style={{ background: "#1a1a1a", border: `1px solid ${acc}44`, borderRadius: 6, padding: "5px 10px", flexShrink: 0, marginLeft: 10 }}>
+                        <div style={{ ...MN, fontSize: 13, color: acc, fontWeight: 600 }}>{ex.s}×{ex.r}</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#555", lineHeight: 1.68, borderTop: "1px solid #1a1a1a", paddingTop: 8 }}>
+                      <span style={{ color: "#333", marginRight: 4 }}>→</span>{ex.cue}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <button onClick={startSession}
+            style={{ width: "100%", padding: "17px", background: acc, border: "none", borderRadius: 12, color: "#000", fontSize: 17, fontWeight: 700, ...BB, letterSpacing: 3, marginTop: 4, marginBottom: 20 }}>
+            START {pd.name} · {dd.name}
+          </button>
+        </div>
+      )}
+
+      {/* ══════════════ SESSION VIEW ══════════════ */}
+      {mode === "session" && (
+        <div style={{ padding: "12px 14px 0" }}>
+          <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "12px 14px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ ...BB, fontSize: 13, letterSpacing: 2, color: acc }}>{pd.name} · {dd.name}</div>
+              <div style={{ ...MN, fontSize: 11, color: "#444", marginTop: 3 }}>
+                {doneCount}/{sExs.length} done{skipCount ? ` · ${skipCount} skipped` : ""} · {durMin} min
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ ...MN, fontSize: 22, color: "#fff", fontWeight: 600, lineHeight: 1 }}>{totalVol.toFixed(0)}</div>
+              <div style={{ fontSize: 10, color: "#444", marginTop: 2 }}>kg volume</div>
+            </div>
+          </div>
+
+          {tmr.on && (
+            <div style={{ background: "#0c110c", border: `1px solid ${acc}44`, borderRadius: 10, padding: "10px 14px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ ...BB, fontSize: 10, letterSpacing: 3, color: "#444", marginBottom: 2 }}>REST</div>
+                <div style={{ ...MN, fontSize: 38, color: acc, fontWeight: 600, lineHeight: 1 }}>{fmtT(tmr.s)}</div>
+                <div style={{ marginTop: 6, height: 3, background: "#1a1a1a", borderRadius: 2, width: 110 }}>
+                  <div style={{ height: "100%", background: acc, borderRadius: 2, width: `${(tmr.s / tmr.total) * 100}%`, transition: "width 1s linear" }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <button onClick={() => setTmr(t => ({ ...t, s: Math.max(0, t.s - 30) }))}
+                  style={{ background: "#1a1a1a", border: "1px solid #252525", borderRadius: 6, padding: "7px 12px", color: "#666", ...MN, fontSize: 12 }}>−30s</button>
+                <button onClick={() => setTmr(t => ({ ...t, on: false }))}
+                  style={{ background: "#1a1a1a", border: "1px solid #252525", borderRadius: 6, padding: "7px 12px", color: "#666", fontSize: 12 }}>Skip</button>
+              </div>
+            </div>
+          )}
+
+          {!sdone && sExs.map((ex, idx) => {
+            const isA = ex.status === "active";
+            const isD = ex.status === "done";
+            const isS = ex.status === "skipped";
+            const pR = parseInt(ex.r) || 10;
+            const hk = `${ph}_${day}_${ex.n}`;
+            const lastSets = hist[hk]?.ls;
+            const lastDate = hist[hk]?.ld;
+
+            return (
+              <div key={idx} style={{ marginBottom: 8, border: `1px solid ${isA ? acc + "55" : isD ? "#1e3a1e" : isS ? "#2a1a1a" : "#1a1a1a"}`, borderRadius: 12, overflow: "hidden", opacity: isS ? 0.6 : 1 }}
+                className={isA ? "slide-up" : ""}>
+
+                <div style={{ background: isA ? "#0d120d" : isD ? "#080f08" : isS ? "#100a0a" : "#0a0a0a", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 14, color: isD ? "#4ade80" : isA ? acc : isS ? "#a55" : "#252525", minWidth: 16 }}>
+                      {isD ? "✓" : isA ? "▶" : isS ? "⤼" : "○"}
+                    </span>
+                    <div>
+                      <button onClick={() => setDemoEx(ex)} style={{ background: "none", padding: 0, textAlign: "left", display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: isA ? "#fff" : isD ? "#4ade80" : "#555", textDecoration: isS ? "line-through" : "none" }}>{ex.n}</span>
+                        {!isS && <span style={{ fontSize: 10, color: isA ? `${acc}99` : "#333" }}>▶</span>}
+                        {ex.swapped && <span style={{ ...MN, fontSize: 8, color: acc, border: `1px solid ${acc}55`, borderRadius: 3, padding: "1px 4px" }}>SWAP</span>}
+                      </button>
+                      <div style={{ ...MN, fontSize: 10, color: "#2a2a2a", marginTop: 1 }}>{ex.ssId} · {ex.load}</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    {isS ? (
+                      <button onClick={() => restoreSkipped(idx)} style={{ ...MN, fontSize: 10, color: "#a55", background: "#1a1010", border: "1px solid #2a1a1a", borderRadius: 5, padding: "4px 8px" }}>restore</button>
+                    ) : (
+                      <>
+                        <div style={{ ...MN, fontSize: 12, color: isD ? "#4ade80" : "#444" }}>{ex.logged.length}/{ex.s}</div>
+                        {ex.vol > 0 && <div style={{ ...MN, fontSize: 10, color: "#2a2a2a" }}>{ex.vol.toFixed(0)}kg</div>}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {isA && (
+                  <div style={{ background: "#090909", padding: "14px" }}>
+
+                    {/* Swap / Skip controls */}
+                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", marginBottom: 12 }}>
+                      <button onClick={() => { setSwapping(s => !s); setSwapName(""); setSwapLoad(""); }}
+                        style={{ ...MN, fontSize: 11, color: swapping ? "#000" : "#888", background: swapping ? acc : "#151515", border: `1px solid ${swapping ? acc : "#252525"}`, borderRadius: 6, padding: "7px 14px" }}>⇄ Swap</button>
+                      <button onClick={skipActive}
+                        style={{ ...MN, fontSize: 11, color: "#a55", background: "#151010", border: "1px solid #2a1a1a", borderRadius: 6, padding: "7px 14px" }}>⤼ Skip</button>
+                    </div>
+
+                    {/* Swap panel */}
+                    {swapping && (
+                      <div className="fade-in" style={{ background: "#0c0c0c", border: `1px solid ${acc}33`, borderRadius: 10, padding: "12px", marginBottom: 14 }}>
+                        <div style={{ ...BB, fontSize: 10, letterSpacing: 3, color: acc, marginBottom: 8 }}>SWAP THIS EXERCISE</div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                          {altsFor(ex.n).map(a => (
+                            <button key={a} onClick={() => setSwapName(a)}
+                              style={{ fontSize: 12, color: swapName === a ? "#000" : "#999", background: swapName === a ? acc : "#151515", border: `1px solid ${swapName === a ? acc : "#252525"}`, borderRadius: 6, padding: "7px 11px", fontWeight: 600 }}>{a}</button>
+                          ))}
+                        </div>
+                        <input type="text" value={swapName} onChange={e => setSwapName(e.target.value)} placeholder="or type any exercise"
+                          style={{ width: "100%", background: "#111", border: "1px solid #252525", borderRadius: 8, padding: "11px", color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", marginBottom: 8 }} />
+                        <input type="text" value={swapLoad} onChange={e => setSwapLoad(e.target.value)} placeholder={`load (default: ${ex.load})`}
+                          style={{ width: "100%", background: "#111", border: "1px solid #252525", borderRadius: 8, padding: "11px", color: "#fff", fontSize: 14, ...MN, marginBottom: 10 }} />
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => setSwapping(false)} style={{ flex: 1, background: "#151515", border: "1px solid #252525", borderRadius: 8, padding: "11px", color: "#666", fontSize: 13 }}>Cancel</button>
+                          <button onClick={confirmSwap} disabled={!swapName.trim()}
+                            style={{ flex: 2, background: swapName.trim() ? acc : "#1a1a1a", border: "none", borderRadius: 8, padding: "11px", color: swapName.trim() ? "#000" : "#444", fontSize: 14, fontWeight: 700, ...BB, letterSpacing: 1 }}>SWAP IN</button>
+                        </div>
+                        <div style={{ ...MN, fontSize: 9, color: "#333", marginTop: 8, lineHeight: 1.5 }}>Keeps your {ex.s}×{ex.r} target. Logs under the new name so it gets its own history.</div>
+                      </div>
+                    )}
+
+                    {lastSets?.length > 0 && (
+                      <div style={{ background: "#0c0c0c", border: "1px solid #161616", borderRadius: 8, padding: "8px 10px", marginBottom: 12 }}>
+                        <div style={{ ...BB, fontSize: 9, letterSpacing: 3, color: "#2a2a2a", marginBottom: 5 }}>LAST SESSION · {lastDate}</div>
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                          {lastSets.map((s, i) => (
+                            <span key={i} style={{ ...MN, fontSize: 11, color: "#555", background: "#141414", padding: "2px 8px", borderRadius: 4 }}>{s.w}×{s.r}@{s.rpe}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {ex.logged.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        {ex.logged.map((s, i) => {
+                          const hit = s.r >= pR;
+                          const miss = s.r < pR - 1 || s.rpe > ex.rpe + 1;
+                          return (
+                            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < ex.logged.length - 1 ? "1px solid #141414" : "none" }}>
+                              <span style={{ ...MN, fontSize: 11, color: "#2a2a2a" }}>Set {i + 1}</span>
+                              <span style={{ ...MN, fontSize: 13, color: "#777" }}>
+                                {s.pr && <span style={{ color: "#fbbf24" }}>★ </span>}{s.w}kg × {s.r} <span style={{ color: "#3a3a3a" }}>RPE {s.rpe}</span>
+                              </span>
+                              <span style={{ fontSize: 14, color: hit ? "#4ade80" : miss ? "#f87171" : "#fbbf24" }}>{hit ? "✓" : miss ? "✗" : "~"}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {ex.logged.length < ex.s && (
+                      <div style={{ background: "#0c0c0c", border: `1px solid ${acc}44`, borderRadius: 14, padding: "18px 14px", marginBottom: 14, textAlign: "center" }}>
+                        <div style={{ ...BB, fontSize: 10, letterSpacing: 4, color: "#333", marginBottom: 4 }}>SET {ex.logged.length + 1} OF {ex.s} — TARGET</div>
+                        <div style={{ ...BB, fontSize: 62, color: acc, lineHeight: 1, letterSpacing: -1 }}>{ex.nextW}kg</div>
+                        <div style={{ ...MN, fontSize: 22, color: "#999", marginTop: 2 }}>× {pR}</div>
+                        <div style={{ ...MN, fontSize: 10, color: "#333", marginTop: 8 }}>Target RPE {ex.rpe}</div>
+                        {ex.note && <div style={{ fontSize: 12, color: "#555", marginTop: 7, fontStyle: "italic" }}>{ex.note}</div>}
+                      </div>
+                    )}
+
+                    {ex.logged.length < ex.s && (
+                      <div>
+                        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                          {[["WEIGHT (kg)", lw, setLw, ex.nextW.toString()], ["REPS", lr, setLr, pR.toString()]].map(([label, val, setter, phh]) => (
+                            <div key={label} style={{ flex: 1 }}>
+                              <div style={{ ...MN, fontSize: 9, color: "#3a3a3a", marginBottom: 4, letterSpacing: 2 }}>{label}</div>
+                              <input type="number" inputMode="numeric" value={val} onChange={e => setter(e.target.value)} placeholder={phh}
+                                style={{ width: "100%", background: "#111", border: "1px solid #252525", borderRadius: 8, padding: "12px", color: "#fff", fontSize: 26, ...MN, textAlign: "center" }} />
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ ...MN, fontSize: 9, color: "#3a3a3a", marginBottom: 5, letterSpacing: 2 }}>RPE</div>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            {[6, 7, 8, 9, 10].map(r => (
+                              <button key={r} onClick={() => setLrpe(r)}
+                                style={{ flex: 1, padding: "11px 4px", background: lrpe === r ? acc : "#151515", border: `1px solid ${lrpe === r ? acc : "#252525"}`, borderRadius: 6, color: lrpe === r ? "#000" : "#555", fontSize: 16, fontWeight: 700 }}>{r}</button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                          {[[-5, "-5kg"], [-2.5, "-2.5"], [0, "Same"], [2.5, "+2.5"], [5, "+5kg"]].map(([d, lbl]) => (
+                            <button key={lbl}
+                              onClick={() => setLw(w => { const b = parseFloat(w) || ex.nextW; return d === 0 ? ex.nextW.toString() : (b + d).toString(); })}
+                              style={{ flex: 1, background: "#151515", border: "1px solid #252525", borderRadius: 6, padding: "8px 2px", color: "#555", ...MN, fontSize: 11 }}>{lbl}</button>
+                          ))}
+                        </div>
+
+                        <button onClick={handleLog}
+                          style={{ width: "100%", padding: "18px", background: acc, border: "none", borderRadius: 10, color: "#000", fontSize: 20, fontWeight: 800, ...BB, letterSpacing: 3 }}>
+                          LOG SET {ex.logged.length + 1}
+                        </button>
+                      </div>
+                    )}
+
+                    {ex.logged.length >= ex.s && (
+                      <div style={{ textAlign: "center", padding: "13px", background: "#080f08", borderRadius: 8, border: "1px solid #1e3a1e" }}>
+                        <span style={{ color: "#4ade80", ...BB, letterSpacing: 2, fontSize: 13 }}>✓ COMPLETE · {ex.vol.toFixed(0)}kg total volume</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {!sdone && (
+            <button onClick={endSession}
+              style={{ width: "100%", marginTop: 8, padding: "14px", background: "transparent", border: "1px solid #1e1e1e", borderRadius: 10, color: "#444", fontSize: 14, marginBottom: 12 }}>
+              End Session
+            </button>
+          )}
+
+          {sdone && (
+            <div style={{ background: "#111", border: "1px solid #222", borderRadius: 14, padding: "22px 16px", marginBottom: 12 }} className="slide-up">
+              <div style={{ ...BB, fontSize: 24, letterSpacing: 3, color: acc, marginBottom: 16 }}>SESSION COMPLETE</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+                {[["Duration", `${durMin}m`], ["Volume", `${totalVol.toFixed(0)}kg`], ["Exercises", `${doneCount}/${sExs.length}`]].map(([l, v]) => (
+                  <div key={l} style={{ background: "#0a0a0a", borderRadius: 8, padding: "10px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: "#444", marginBottom: 4 }}>{l}</div>
+                    <div style={{ ...MN, fontSize: 16, color: "#fff" }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              {sExs.filter(e => e.logged.some(s => s.pr)).map(ex => (
+                <div key={ex.n} style={{ background: "#0c0a00", border: "1px solid #fbbf2433", borderRadius: 8, padding: "8px 12px", marginBottom: 6 }}>
+                  <span style={{ color: "#fbbf24", fontSize: 13 }}>★ PR — {ex.n}</span>
+                </div>
+              ))}
+              <button onClick={() => { setMode("history"); setSExs([]); setSdone(false); }}
+                style={{ width: "100%", marginTop: 10, padding: "13px", background: "transparent", border: `1px solid ${acc}55`, borderRadius: 10, color: acc, fontSize: 14, fontWeight: 700, ...BB, letterSpacing: 2 }}>
+                VIEW PROGRESS
+              </button>
+              <button onClick={() => { setMode("program"); setSExs([]); setSdone(false); }}
+                style={{ width: "100%", marginTop: 8, padding: "15px", background: acc, border: "none", borderRadius: 10, color: "#000", fontSize: 17, fontWeight: 700, ...BB, letterSpacing: 2 }}>
+                BACK TO PROGRAM
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════ HISTORY VIEW ══════════════ */}
+      {mode === "history" && (
+        <div style={{ padding: "14px 14px 0" }}>
+          <div style={{ ...BB, fontSize: 20, letterSpacing: 3, color: "#fff", marginBottom: 4 }}>PROGRESS</div>
+          <div style={{ ...MN, fontSize: 10, color: "#444", marginBottom: 16 }}>Estimated 1RM per lift, session over session</div>
+
+          {histRows.length === 0 ? (
+            <div style={{ background: "#111", border: "1px dashed #222", borderRadius: 12, padding: "34px 18px", textAlign: "center" }}>
+              <div style={{ fontSize: 30, marginBottom: 10 }}>📈</div>
+              <div style={{ color: "#666", fontSize: 14, fontWeight: 600, marginBottom: 4 }}>No history yet</div>
+              <div style={{ color: "#3a3a3a", fontSize: 12, lineHeight: 1.6 }}>Finish a session and your lifts will start charting here. Two or more sessions of a lift draws its trend line.</div>
+            </div>
+          ) : histRows.map(row => {
+            const series = row.s.map(x => x.e1rm);
+            const latest = series[series.length - 1];
+            const prev = series.length > 1 ? series[series.length - 2] : null;
+            const delta = prev != null ? Math.round((latest - prev) * 10) / 10 : null;
+            const peak = Math.max(...series);
+            const pAcc = PHASE_ACCENT[row.p] || acc;
+            const isOpen = openHk === row.key;
+            const trendColor = delta == null ? "#555" : delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#fbbf24";
+
+            return (
+              <div key={row.key} style={{ marginBottom: 8, border: "1px solid #1a1a1a", borderRadius: 12, overflow: "hidden" }}>
+                <button onClick={() => setOpenHk(isOpen ? null : row.key)}
+                  style={{ width: "100%", background: "#0f0f0f", padding: "13px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", textAlign: "left" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 3, background: pAcc, flexShrink: 0 }} />
+                      <span style={{ fontWeight: 600, fontSize: 14, color: "#eee", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.name}</span>
+                    </div>
+                    <div style={{ ...MN, fontSize: 10, color: "#444" }}>
+                      {row.p.toUpperCase()} · Day {row.d} · {row.s.length} session{row.s.length > 1 ? "s" : ""}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <Spark data={series} accent={pAcc} />
+                    <div style={{ textAlign: "right", minWidth: 54 }}>
+                      <div style={{ ...MN, fontSize: 16, color: "#fff", fontWeight: 600, lineHeight: 1 }}>{latest}</div>
+                      <div style={{ ...MN, fontSize: 9, color: "#444", marginTop: 2 }}>est 1RM</div>
+                      {delta != null && (
+                        <div style={{ ...MN, fontSize: 10, color: trendColor, marginTop: 3 }}>
+                          {delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} {delta > 0 ? "+" : ""}{delta}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {isOpen && (
+                  <div className="fade-in" style={{ background: "#080808", padding: "14px", borderTop: "1px solid #1a1a1a" }}>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                      {[["Peak 1RM", `${peak}kg`], ["Best vol", `${(hist[row.key]?.bv || 0).toFixed(0)}kg`], ["Sessions", row.s.length]].map(([l, v]) => (
+                        <div key={l} style={{ flex: 1, background: "#0f0f0f", borderRadius: 8, padding: "9px 6px", textAlign: "center" }}>
+                          <div style={{ ...MN, fontSize: 15, color: "#eee" }}>{v}</div>
+                          <div style={{ fontSize: 9, color: "#444", marginTop: 2 }}>{l}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ ...BB, fontSize: 10, letterSpacing: 3, color: "#333", marginBottom: 6 }}>SESSION LOG</div>
+                    {[...row.s].reverse().map((s, i) => {
+                      const isPeak = s.e1rm === peak;
+                      return (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: i < row.s.length - 1 ? "1px solid #131313" : "none" }}>
+                          <span style={{ ...MN, fontSize: 11, color: "#555" }}>{s.date || "—"}</span>
+                          <span style={{ ...MN, fontSize: 11, color: "#777" }}>
+                            {s.sets.map(x => `${x.w}×${x.r}`).join("  ")}
+                          </span>
+                          <span style={{ ...MN, fontSize: 11, color: isPeak ? "#fbbf24" : "#666" }}>
+                            {isPeak && "★ "}{s.e1rm}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<GymApp />);
+</script>
+</body>
+</html>
